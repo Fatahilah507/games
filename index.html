@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Tarik Tambang Matematika SD - Papan Interaktif</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        p1: {
+                            light: '#fee2e2',
+                            DEFAULT: '#ef4444',
+                            dark: '#b91c1c',
+                        },
+                        p2: {
+                            light: '#dbeafe',
+                            DEFAULT: '#3b82f6',
+                            dark: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #f8fafc;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            overflow-x: hidden;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .rope-container {
+            position: relative;
+            height: 140px;
+            background: radial-gradient(circle at center, #334155 0%, #0f172a 100%);
+            border-bottom: 4px solid #475569;
+        }
+
+        .rope {
+            position: absolute;
+            top: 50%;
+            height: 16px;
+            background: repeating-linear-gradient(
+                45deg,
+                #d97706,
+                #d97706 15px,
+                #b45309 15px,
+                #b45309 30px
+            );
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            transform: translateY(-50%);
+            transition: left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .flag-marker {
+            position: absolute;
+            top: -24px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 24px;
+            height: 36px;
+            background: #eab308;
+            clip-path: polygon(0 0, 100% 0, 80% 50%, 100% 100%, 0 100%);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .character-p1, .character-p2 {
+            transition: transform 0.3s ease;
+        }
+
+        .tugging-p1 {
+            animation: tugLeft 0.5s ease-in-out;
+        }
+
+        .tugging-p2 {
+            animation: tugRight 0.5s ease-in-out;
+        }
+
+        @keyframes tugLeft {
+            0% { transform: translateX(0) rotate(0deg); }
+            50% { transform: translateX(-15px) rotate(-10deg); }
+            100% { transform: translateX(0) rotate(0deg); }
+        }
+
+        @keyframes tugRight {
+            0% { transform: translateX(0) rotate(0deg); }
+            50% { transform: translateX(15px) rotate(10deg); }
+            100% { transform: translateX(0) rotate(0deg); }
+        }
+
+        /* Large touch feedback for Smartboards */
+        .touch-btn {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .touch-btn:active {
+            transform: scale(0.95) !important;
+        }
+
+        .confetti-piece {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            top: -20px;
+            animation: confettiFall 3s linear infinite;
+        }
+
+        @keyframes confettiFall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between select-none">
+
+    <!-- TOP HEADER BAR -->
+    <header class="bg-slate-900/90 border-b border-slate-800 py-3 px-6 flex justify-between items-center z-40">
+        <div class="flex items-center gap-3">
+            <div class="bg-amber-500 text-slate-950 p-2.5 rounded-2xl shadow-lg">
+                <i class="fa-solid fa-people-pulling text-2xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-black tracking-wide text-white">ADU Cepat Math: Tarik Tambang</h1>
+                <p class="text-xs text-slate-400 font-semibold">Media Pembelajaran Interaktif Papan Digital SD</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button onclick="toggleSound()" id="soundBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2.5 rounded-xl border border-slate-700 font-bold text-sm flex items-center gap-2 transition">
+                <i id="soundIcon" class="fa-solid fa-volume-high text-amber-400"></i>
+                <span id="soundText">Suara On</span>
+            </button>
+            <button onclick="showSetup()" id="resetMenuBtn" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2.5 rounded-xl border border-slate-700 font-bold text-sm flex items-center gap-2 transition">
+                <i class="fa-solid fa-gear text-blue-400"></i>
+                <span>Pengaturan Game</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN APP CONTAINER -->
+    <main class="flex-grow flex flex-col justify-between p-3 sm:p-5 gap-4 relative">
+
+        <!-- SETUP SCREEN (Game Lobby) -->
+        <section id="setupScreen" class="max-w-4xl w-full mx-auto my-auto glass-panel rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 z-30">
+            <div class="text-center space-y-2">
+                <span class="bg-amber-500/20 text-amber-400 text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider border border-amber-500/30">Mode 2 Pemain (Adu Cepat)</span>
+                <h2 class="text-3xl sm:text-4xl font-black text-white">Persiapan Tanding Tarik Tambang</h2>
+                <p class="text-slate-400 text-sm">Atur nama pemain, materi matematika, dan target kemenangan sebelum tanding di papan interaktif!</p>
+            </div>
+
+            <form onsubmit="startGame(event)" class="space-y-6">
+                <!-- Player Names Config -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-rose-950/40 border-2 border-rose-500/30 p-5 rounded-2xl space-y-3">
+                        <label class="text-sm font-bold text-rose-400 flex items-center gap-2">
+                            <i class="fa-solid fa-user-ninja text-lg"></i> Pemain 1 (Tim Merah - Kiri)
+                        </label>
+                        <input type="text" id="p1Input" value="Tim Merah" required class="w-full bg-slate-900 border border-rose-500/40 rounded-xl px-4 py-3 text-white font-bold focus:outline-none focus:ring-2 focus:ring-rose-500 text-lg">
+                    </div>
+
+                    <div class="bg-blue-950/40 border-2 border-blue-500/30 p-5 rounded-2xl space-y-3">
+                        <label class="text-sm font-bold text-blue-400 flex items-center gap-2">
+                            <i class="fa-solid fa-user-astronaut text-lg"></i> Pemain 2 (Tim Biru - Kanan)
+                        </label>
+                        <input type="text" id="p2Input" value="Tim Biru" required class="w-full bg-slate-900 border border-blue-500/40 rounded-xl px-4 py-3 text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg">
+                    </div>
+                </div>
+
+                <!-- Topic Selection -->
+                <div class="space-y-2">
+                    <label class="block text-sm font-bold text-slate-300">Pilih Topic Matematika:</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label class="relative flex items-center p-4 rounded-2xl border-2 border-slate-700 bg-slate-800/60 cursor-pointer hover:border-amber-500 transition has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/10">
+                            <input type="radio" name="topicSelect" value="all" checked class="w-5 h-5 text-amber-500 focus:ring-amber-500">
+                            <div class="ml-3">
+                                <span class="block font-bold text-white">Acak Semua Topik</span>
+                                <span class="block text-xs text-slate-400">Campuran Pecahan, Hitung Campuran, & KPK</span>
+                            </div>
+                        </label>
+                        <label class="relative flex items-center p-4 rounded-2xl border-2 border-slate-700 bg-slate-800/60 cursor-pointer hover:border-amber-500 transition has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/10">
+                            <input type="radio" name="topicSelect" value="1" class="w-5 h-5 text-amber-500 focus:ring-amber-500">
+                            <div class="ml-3">
+                                <span class="block font-bold text-white">Topik 1: Pecahan, Persen & Desimal</span>
+                                <span class="block text-xs text-slate-400">Analisis proporsi & perbandingan data</span>
+                            </div>
+                        </label>
+                        <label class="relative flex items-center p-4 rounded-2xl border-2 border-slate-700 bg-slate-800/60 cursor-pointer hover:border-amber-500 transition has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/10">
+                            <input type="radio" name="topicSelect" value="2" class="w-5 h-5 text-amber-500 focus:ring-amber-500">
+                            <div class="ml-3">
+                                <span class="block font-bold text-white">Topik 2: Operasi Hitung Campuran</span>
+                                <span class="block text-xs text-slate-400">Pola: a ÷ b + (c - d) × e</span>
+                            </div>
+                        </label>
+                        <label class="relative flex items-center p-4 rounded-2xl border-2 border-slate-700 bg-slate-800/60 cursor-pointer hover:border-amber-500 transition has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/10">
+                            <input type="radio" name="topicSelect" value="3" class="w-5 h-5 text-amber-500 focus:ring-amber-500">
+                            <div class="ml-3">
+                                <span class="block font-bold text-white">Topik 3: Kelipatan Terkecil (KPK)</span>
+                                <span class="block text-xs text-slate-400">Jadwal berkala & bersamaan</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Winning Threshold -->
+                <div class="space-y-2">
+                    <label class="block text-sm font-bold text-slate-300">Target Selisih Tarikan Kemenangan:</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <label class="text-center p-3 rounded-xl border-2 border-slate-700 bg-slate-800/60 cursor-pointer hover:border-amber-500 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/20 font-bold text-white">
+                            <input type="radio" name="targetSelect" value="3" class="sr-only"> 3 Tarikan
+                        </label>
+                        <label class="text-center p-3 rounded-xl border-2 border-slate-700 bg-slate-800/60 cursor-pointer hover:border-amber-500 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/20 font-bold text-white">
+                            <input type="radio" name="targetSelect" value="5" checked class="sr-only"> 5 Tarikan (Standard)
+                        </label>
+                        <label class="text-center p-3 rounded-xl border-2 border-slate-700 bg-slate-800/60 cursor-pointer hover:border-amber-500 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/20 font-bold text-white">
+                            <input type="radio" name="targetSelect" value="7" class="sr-only"> 7 Tarikan
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full py-5 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 hover:from-amber-600 hover:to-red-600 text-slate-950 font-black text-xl rounded-2xl shadow-xl shadow-orange-500/20 transition transform active:scale-98 flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-play text-2xl"></i>
+                    <span>MULAI TANDING SEKARANG!</span>
+                </button>
+            </form>
+        </section>
+
+        <!-- GAMEPLAY ARENA & DUAL PANELS -->
+        <section id="gameScreen" class="hidden flex-grow flex flex-col justify-between gap-4">
+            
+            <!-- TOP ARENA: TUG OF WAR VISUALIZER -->
+            <div class="glass-panel rounded-3xl p-4 shadow-2xl relative overflow-hidden">
+                <!-- Score / Status Header -->
+                <div class="flex justify-between items-center mb-2 px-4">
+                    <div class="flex items-center gap-3">
+                        <span class="w-4 h-4 rounded-full bg-rose-500 animate-pulse"></span>
+                        <span id="p1NameLabel" class="font-black text-lg text-rose-400">Pemain 1</span>
+                        <span id="p1ScoreBadge" class="bg-rose-950 border border-rose-500/40 text-rose-300 px-3 py-0.5 rounded-full text-xs font-bold">0 Poin</span>
+                    </div>
+
+                    <div id="positionStatus" class="bg-slate-900 border border-slate-700 px-4 py-1 rounded-full text-xs font-bold text-amber-400 uppercase tracking-widest">
+                        POSISI SEIMBANG (0)
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <span id="p2ScoreBadge" class="bg-blue-950 border border-blue-500/40 text-blue-300 px-3 py-0.5 rounded-full text-xs font-bold">0 Poin</span>
+                        <span id="p2NameLabel" class="font-black text-lg text-blue-400">Pemain 2</span>
+                        <span class="w-4 h-4 rounded-full bg-blue-500 animate-pulse"></span>
+                    </div>
+                </div>
+
+                <!-- Animated Rope Arena -->
+                <div class="rope-container rounded-2xl flex items-center justify-center overflow-hidden border border-slate-700/50">
+                    
+                    <!-- Mud / Win Boundaries -->
+                    <div class="absolute left-0 top-0 bottom-0 w-16 sm:w-24 bg-rose-950/60 border-r-2 border-dashed border-rose-500/50 flex items-center justify-center text-rose-400 font-black text-xs sm:text-sm uppercase tracking-tighter">
+                        ZONA MERAH
+                    </div>
+                    <div class="absolute right-0 top-0 bottom-0 w-16 sm:w-24 bg-blue-950/60 border-l-2 border-dashed border-blue-500/50 flex items-center justify-center text-blue-400 font-black text-xs sm:text-sm uppercase tracking-tighter">
+                        ZONA BIRU
+                    </div>
+
+                    <!-- Center Line -->
+                    <div class="absolute left-1/2 top-0 bottom-0 w-1 bg-amber-500/40 -translate-x-1/2 z-10"></div>
+
+                    <!-- Tugging Avatars -->
+                    <div id="p1Avatar" class="character-p1 absolute left-8 sm:left-28 z-20 flex flex-col items-center">
+                        <i class="fa-solid fa-child-reaching text-4xl sm:text-5xl text-rose-500 drop-shadow-md"></i>
+                        <span class="text-[10px] font-bold text-rose-300 uppercase">P1 TUG</span>
+                    </div>
+
+                    <div id="p2Avatar" class="character-p2 absolute right-8 sm:right-28 z-20 flex flex-col items-center">
+                        <i class="fa-solid fa-child-reaching text-4xl sm:text-5xl text-blue-500 drop-shadow-md scale-x-[-1]"></i>
+                        <span class="text-[10px] font-bold text-blue-300 uppercase">P2 TUG</span>
+                    </div>
+
+                    <!-- Dynamic Rope & Center Flag -->
+                    <div id="dynamicRope" class="rope w-[120%]" style="left: -10%;">
+                        <div class="flag-marker"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BOTTOM DUAL CONTROL PANELS (TOUCHSCREEN BOARD FRIENDLY) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow">
+                
+                <!-- PANEL PEMAIN 1 (KIRI - MERAH) -->
+                <div class="glass-panel border-2 border-rose-500/40 rounded-3xl p-4 sm:p-6 flex flex-col justify-between space-y-4 bg-gradient-to-b from-rose-950/20 to-slate-900/90 shadow-xl relative overflow-hidden">
+                    <div class="flex justify-between items-center border-b border-rose-500/20 pb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-rose-500"></span>
+                            <span class="font-black text-rose-400 text-base sm:text-lg" id="p1PanelTitle">PEMAIN 1</span>
+                        </div>
+                        <span class="bg-rose-500/20 text-rose-300 text-xs font-bold px-3 py-1 rounded-xl border border-rose-500/30">PANEL KIRI</span>
+                    </div>
+
+                    <!-- Question Container P1 -->
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 min-h-[130px] flex flex-col justify-center">
+                        <span id="p1TopicTag" class="text-[11px] font-bold text-amber-400 block mb-1">TOPIK: SOAL</span>
+                        <p id="p1QuestionText" class="text-white font-bold text-base sm:text-lg leading-snug">
+                            Loading Soal...
+                        </p>
+                    </div>
+
+                    <!-- Answer Options P1 (Large Buttons for Whiteboard Touch) -->
+                    <div id="p1Options" class="grid grid-cols-2 gap-3">
+                        <!-- Dynamic Buttons inserted here -->
+                    </div>
+                </div>
+
+                <!-- PANEL PEMAIN 2 (KANAN - BIRU) -->
+                <div class="glass-panel border-2 border-blue-500/40 rounded-3xl p-4 sm:p-6 flex flex-col justify-between space-y-4 bg-gradient-to-b from-blue-950/20 to-slate-900/90 shadow-xl relative overflow-hidden">
+                    <div class="flex justify-between items-center border-b border-blue-500/20 pb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                            <span class="font-black text-blue-400 text-base sm:text-lg" id="p2PanelTitle">PEMAIN 2</span>
+                        </div>
+                        <span class="bg-blue-500/20 text-blue-300 text-xs font-bold px-3 py-1 rounded-xl border border-blue-500/30">PANEL KANAN</span>
+                    </div>
+
+                    <!-- Question Container P2 -->
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 min-h-[130px] flex flex-col justify-center">
+                        <span id="p2TopicTag" class="text-[11px] font-bold text-amber-400 block mb-1">TOPIK: SOAL</span>
+                        <p id="p2QuestionText" class="text-white font-bold text-base sm:text-lg leading-snug">
+                            Loading Soal...
+                        </p>
+                    </div>
+
+                    <!-- Answer Options P2 (Large Buttons for Whiteboard Touch) -->
+                    <div id="p2Options" class="grid grid-cols-2 gap-3">
+                        <!-- Dynamic Buttons inserted here -->
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- VICTORY OVERLAY SCREEN -->
+        <section id="victoryScreen" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+            <div id="confettiContainer" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+
+            <div class="max-w-md w-full glass-panel border-2 border-amber-500/50 rounded-3xl p-8 text-center space-y-6 shadow-2xl relative">
+                <div class="inline-block p-4 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                    <i class="fa-solid fa-trophy text-6xl animate-bounce"></i>
+                </div>
+
+                <div class="space-y-1">
+                    <span class="text-xs font-bold text-amber-400 uppercase tracking-widest block">PEMENANG TARIK TAMBANG</span>
+                    <h2 id="winnerTitle" class="text-3xl font-black text-white">PEMAIN 1 MENANG!</h2>
+                    <p id="winnerSubtitle" class="text-xs text-slate-400">Berhasil menarik tali mencapai batas target kemenangan!</p>
+                </div>
+
+                <!-- Match Stats -->
+                <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-2 text-left text-xs">
+                    <div class="flex justify-between text-slate-300">
+                        <span>Total Jawaban P1:</span>
+                        <span id="statP1Ans" class="font-bold text-rose-400">0</span>
+                    </div>
+                    <div class="flex justify-between text-slate-300">
+                        <span>Total Jawaban P2:</span>
+                        <span id="statP2Ans" class="font-bold text-blue-400">0</span>
+                    </div>
+                    <div class="flex justify-between text-slate-300 border-t border-slate-800 pt-2">
+                        <span>Posisi Akhir Tali:</span>
+                        <span id="statFinalPos" class="font-bold text-amber-400">0</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-3 pt-2">
+                    <button onclick="restartGameSameSettings()" class="w-full py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-lg rounded-2xl transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20">
+                        <i class="fa-solid fa-rotate-right"></i>
+                        <span>Tanding Ulang</span>
+                    </button>
+                    <button onclick="showSetup()" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm rounded-2xl transition border border-slate-700">
+                        Ganti Topik / Pengaturan
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // --- Web Audio API Sound Synthesizer ---
+        let audioCtx = null;
+        let soundEnabled = true;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('soundIcon');
+            const text = document.getElementById('soundText');
+            if (soundEnabled) {
+                icon.className = "fa-solid fa-volume-high text-amber-400";
+                text.textContent = "Suara On";
+                playTone(523.25, 'sine', 0.1);
+            } else {
+                icon.className = "fa-solid fa-volume-xmark text-slate-400";
+                text.textContent = "Suara Off";
+            }
+        }
+
+        function playTone(freq, type, duration) {
+            if (!soundEnabled) return;
+            try {
+                const ctx = getAudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = type || 'sine';
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + duration);
+            } catch (e) { console.error(e); }
+        }
+
+        function playSFX(type) {
+            if (!soundEnabled) return;
+            if (type === 'tug') {
+                playTone(250, 'sawtooth', 0.12);
+            } else if (type === 'correct') {
+                playTone(523.25, 'triangle', 0.08); // C5
+                setTimeout(() => playTone(659.25, 'triangle', 0.12), 80); // E5
+            } else if (type === 'wrong') {
+                playTone(180, 'sawtooth', 0.2);
+            } else if (type === 'victory') {
+                playTone(523.25, 'sine', 0.1);
+                setTimeout(() => playTone(659.25, 'sine', 0.1), 100);
+                setTimeout(() => playTone(783.99, 'sine', 0.1), 200);
+                setTimeout(() => playTone(1046.50, 'sine', 0.3), 300);
+            }
+        }
+
+        // --- GAME STATE ---
+        let gameState = {
+            p1Name: "Tim Merah",
+            p2Name: "Tim Biru",
+            topic: "all",
+            targetThreshold: 5,
+            ropePosition: 0, // Negative = P1 leads, Positive = P2 leads
+            p1Score: 0,
+            p2Score: 0,
+            p1CurrentQuestion: null,
+            p2CurrentQuestion: null,
+            p1TotalAnswers: 0,
+            p2TotalAnswers: 0,
+            gameActive: false
+        };
+
+        // --- MATH QUESTION GENERATORS ---
+        function generateQuestion(topic) {
+            let selectedTopic = topic;
+            if (topic === 'all') {
+                selectedTopic = String(Math.floor(Math.random() * 3) + 1);
+            }
+
+            if (selectedTopic === '1') {
+                return generateTopic1Pecahan();
+            } else if (selectedTopic === '2') {
+                return generateTopic2HitungCampuran();
+            } else {
+                return generateTopic3KPK();
+            }
+        }
+
+        // Topic 1: Pecahan, Persen & Desimal
+        function generateTopic1Pecahan() {
+            const types = ['persen', 'pecahan', 'desimal'];
+            const chosenType = types[Math.floor(Math.random() * types.length)];
+
+            if (chosenType === 'persen') {
+                // e.g., Total 50, item A = 15, % = 30%
+                const multipliers = [2, 4, 5];
+                const mult = multipliers[Math.floor(Math.random() * multipliers.length)];
+                const total = 100 / mult; // 50, 25, 20
+                const count = Math.floor(Math.random() * (total - 5)) + 3;
+                const correctPercent = Math.round((count / total) * 100);
+
+                const questionText = `Terdapat <strong>${count}</strong> benda dari total <strong>${total}</strong> benda. Berapa persen nilainya?`;
+                const correctAns = `${correctPercent}%`;
+
+                // Generate distractors
+                const distractors = new Set();
+                while (distractors.size < 3) {
+                    const offset = (Math.floor(Math.random() * 5) + 1) * 5 * (Math.random() > 0.5 ? 1 : -1);
+                    const val = correctPercent + offset;
+                    if (val > 0 && val <= 100 && val !== correctPercent) {
+                        distractors.add(`${val}%`);
+                    }
+                }
+
+                return {
+                    topicTag: "TOPIK 1: PERSENTASE",
+                    text: questionText,
+                    correct: correctAns,
+                    options: shuffleArray([correctAns, ...Array.from(distractors)])
+                };
+            } else if (chosenType === 'pecahan') {
+                // Simplest fraction form
+                const optionsPool = [
+                    { total: 40, count: 10, fraction: "1/4" },
+                    { total: 50, count: 25, fraction: "1/2" },
+                    { total: 30, count: 10, fraction: "1/3" },
+                    { total: 40, count: 18, fraction: "9/20" },
+                    { total: 50, count: 20, fraction: "2/5" },
+                    { total: 50, count: 15, fraction: "3/10" }
+                ];
+                const selected = optionsPool[Math.floor(Math.random() * optionsPool.length)];
+                const questionText = `Terdapat <strong>${selected.count}</strong> benda dari total <strong>${selected.total}</strong> benda. Bentuk pecahan sederhananya adalah ....`;
+                
+                const distractors = ["1/5", "2/3", "3/4", "3/5", "7/10", "4/5"].filter(f => f !== selected.fraction);
+                const selectedDistractors = shuffleArray(distractors).slice(0, 3);
+
+                return {
+                    topicTag: "TOPIK 1: PECAHAN SEDERHANA",
+                    text: questionText,
+                    correct: selected.fraction,
+                    options: shuffleArray([selected.fraction, ...selectedDistractors])
+                };
+            } else {
+                // Desimal
+                const total = 50;
+                const count = (Math.floor(Math.random() * 18) + 2) * 2; // Even number 4 to 36
+                const decimalVal = (count / total).toFixed(2).replace('.', ',');
+
+                const questionText = `Bentuk desimal dari <strong>${count}</strong> per <strong>${total}</strong> (yaitu ${count}/50) adalah ....`;
+                
+                const correctAns = decimalVal;
+                const distractors = new Set();
+                while (distractors.size < 3) {
+                    const offset = (Math.floor(Math.random() * 4) - 2) * 0.05;
+                    const val = Math.abs(parseFloat((count / total) + offset)).toFixed(2).replace('.', ',');
+                    if (val !== correctAns && parseFloat(val) > 0) {
+                        distractors.add(val);
+                    }
+                }
+
+                return {
+                    topicTag: "TOPIK 1: DESIMAL",
+                    text: questionText,
+                    correct: correctAns,
+                    options: shuffleArray([correctAns, ...Array.from(distractors)])
+                };
+            }
+        }
+
+        // Topic 2: Operasi Hitung Campuran: a ÷ b + (c - d) × e
+        function generateTopic2HitungCampuran() {
+            const b = Math.floor(Math.random() * 5) + 4; // 4 to 8
+            const multDiv = Math.floor(Math.random() * 30) + 15; // 15 to 44
+            const a = b * multDiv; // Exact division
+
+            const diff = Math.floor(Math.random() * 150) + 100; // 100 to 249
+            const d = Math.floor(Math.random() * 200) + 150;
+            const c = d + diff; // c - d = diff
+
+            const e = Math.floor(Math.random() * 3) + 3; // 3 to 5
+
+            const step1 = a / b;
+            const step2 = c - d;
+            const step3 = step2 * e;
+            const result = step1 + step3;
+
+            const questionText = `Hasil dari: <br><span class="text-xl text-amber-300 font-black">${a} ÷ ${b} + (${c} - ${d}) × ${e}</span> = ....`;
+
+            const distractors = new Set();
+            distractors.add(result + 10);
+            distractors.add(result - 10);
+            distractors.add(result + (b * e));
+            while (distractors.size < 3) {
+                distractors.add(result + Math.floor(Math.random() * 30) - 15);
+            }
+
+            const formattedCorrect = result.toLocaleString('id-ID');
+            const formattedOptions = shuffleArray([
+                formattedCorrect,
+                ...Array.from(distractors).map(d => d.toLocaleString('id-ID'))
+            ]);
+
+            return {
+                topicTag: "TOPIK 2: OPERASI HITUNG CAMPURAN",
+                text: questionText,
+                correct: formattedCorrect,
+                options: formattedOptions
+            };
+        }
+
+        // Topic 3: KPK & Jadwal Berkala
+        function generateTopic3KPK() {
+            const kpkPresets = [
+                { a: 10, b: 15, c: 20, ans: 60, unit: "menit", story: "Tiga bus sekolah berangkat setiap 10, 15, dan 20 menit." },
+                { a: 6, b: 8, c: 12, ans: 24, unit: "hari", story: "Tiga siswa les renang setiap 6, 8, dan 12 hari." },
+                { a: 15, b: 20, c: 30, ans: 60, unit: "hari", story: "Pasokan barang toko datang setiap 15, 20, dan 30 hari." },
+                { a: 4, b: 6, c: 8, ans: 24, unit: "hari", story: "Tiga lampu hias menyala secara berkala setiap 4, 6, dan 8 hari." },
+                { a: 12, b: 18, c: 24, ans: 72, unit: "hari", story: "Tiga petugas ronda malam bertugas setiap 12, 18, dan 24 hari." }
+            ];
+
+            const chosen = kpkPresets[Math.floor(Math.random() * kpkPresets.length)];
+            const questionText = `${chosen.story} Jika hari ini bersamaan, setelah berapa ${chosen.unit} mereka akan bersamaan lagi?`;
+
+            const correctAns = `${chosen.ans} ${chosen.unit}`;
+            const distractors = [
+                `${chosen.ans / 2} ${chosen.unit}`,
+                `${chosen.ans + 12} ${chosen.unit}`,
+                `${chosen.ans * 2} ${chosen.unit}`,
+                `${chosen.ans + 18} ${chosen.unit}`
+            ].filter(d => d !== correctAns);
+
+            return {
+                topicTag: "TOPIK 3: KPK & JADWAL BERKALA",
+                text: questionText,
+                correct: correctAns,
+                options: shuffleArray([correctAns, ...shuffleArray(distractors).slice(0, 3)])
+            };
+        }
+
+        function shuffleArray(arr) {
+            const a = [...arr];
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
+        // --- GAME CONTROLS & LOGIC ---
+        function showSetup() {
+            document.getElementById('setupScreen').classList.remove('hidden');
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('victoryScreen').classList.add('hidden');
+            document.getElementById('resetMenuBtn').classList.add('hidden');
+            gameState.gameActive = false;
+        }
+
+        function startGame(e) {
+            if (e) e.preventDefault();
+
+            gameState.p1Name = document.getElementById('p1Input').value.trim() || "Tim Merah";
+            gameState.p2Name = document.getElementById('p2Input').value.trim() || "Tim Biru";
+            gameState.topic = document.querySelector('input[name="topicSelect"]:checked').value;
+            gameState.targetThreshold = parseInt(document.querySelector('input[name="targetSelect"]:checked').value);
+
+            gameState.ropePosition = 0;
+            gameState.p1Score = 0;
+            gameState.p2Score = 0;
+            gameState.p1TotalAnswers = 0;
+            gameState.p2TotalAnswers = 0;
+            gameState.gameActive = true;
+
+            // Update Titles
+            document.getElementById('p1NameLabel').textContent = gameState.p1Name;
+            document.getElementById('p2NameLabel').textContent = gameState.p2Name;
+            document.getElementById('p1PanelTitle').textContent = gameState.p1Name.toUpperCase();
+            document.getElementById('p2PanelTitle').textContent = gameState.p2Name.toUpperCase();
+
+            // Screen Switch
+            document.getElementById('setupScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+            document.getElementById('victoryScreen').classList.add('hidden');
+            document.getElementById('resetMenuBtn').classList.remove('hidden');
+
+            updateRopeUI();
+            nextP1Question();
+            nextP2Question();
+        }
+
+        function nextP1Question() {
+            gameState.p1CurrentQuestion = generateQuestion(gameState.topic);
+            renderPlayerPanel('p1', gameState.p1CurrentQuestion);
+        }
+
+        function nextP2Question() {
+            gameState.p2CurrentQuestion = generateQuestion(gameState.topic);
+            renderPlayerPanel('p2', gameState.p2CurrentQuestion);
+        }
+
+        function renderPlayerPanel(playerKey, qObj) {
+            document.getElementById(`${playerKey}TopicTag`).textContent = qObj.topicTag;
+            document.getElementById(`${playerKey}QuestionText`).innerHTML = qObj.text;
+
+            const optionsBox = document.getElementById(`${playerKey}Options`);
+            optionsBox.innerHTML = '';
+
+            const optionLabels = ['A', 'B', 'C', 'D'];
+
+            qObj.options.forEach((optText, idx) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.onclick = () => handleAnswer(playerKey, optText);
+
+                const isP1 = playerKey === 'p1';
+                const colorBorder = isP1 ? 'hover:border-rose-500 bg-rose-950/30' : 'hover:border-blue-500 bg-blue-950/30';
+                const badgeBg = isP1 ? 'bg-rose-500 text-white' : 'bg-blue-500 text-white';
+
+                btn.className = `touch-btn p-4 sm:p-5 rounded-2xl border-2 border-slate-700 ${colorBorder} text-left flex items-center gap-3 transition shadow-lg active:scale-95 text-white font-bold text-sm sm:text-base`;
+
+                btn.innerHTML = `
+                    <span class="w-8 h-8 rounded-xl ${badgeBg} flex items-center justify-center font-black text-xs shrink-0">${optionLabels[idx]}</span>
+                    <span class="leading-tight">${optText}</span>
+                `;
+
+                optionsBox.appendChild(btn);
+            });
+        }
+
+        function handleAnswer(playerKey, selectedValue) {
+            if (!gameState.gameActive) return;
+
+            const isP1 = playerKey === 'p1';
+            const currentQ = isP1 ? gameState.p1CurrentQuestion : gameState.p2CurrentQuestion;
+
+            if (isP1) gameState.p1TotalAnswers++;
+            else gameState.p2TotalAnswers++;
+
+            if (selectedValue === currentQ.correct) {
+                // Correct answer! Pull rope towards this player
+                playSFX('correct');
+                playSFX('tug');
+
+                if (isP1) {
+                    gameState.ropePosition--; // Move Left
+                    gameState.p1Score++;
+                    animateTug('p1');
+                    nextP1Question();
+                } else {
+                    gameState.ropePosition++; // Move Right
+                    gameState.p2Score++;
+                    animateTug('p2');
+                    nextP2Question();
+                }
+            } else {
+                // Wrong answer! Rope shifts towards enemy as penalty
+                playSFX('wrong');
+
+                if (isP1) {
+                    gameState.ropePosition++; // Penalty move right
+                    animateTug('p2');
+                    nextP1Question();
+                } else {
+                    gameState.ropePosition--; // Penalty move left
+                    animateTug('p1');
+                    nextP2Question();
+                }
+            }
+
+            updateRopeUI();
+            checkVictoryCondition();
+        }
+
+        function animateTug(playerKey) {
+            const avatar = document.getElementById(`${playerKey}Avatar`);
+            avatar.classList.add(playerKey === 'p1' ? 'tugging-p1' : 'tugging-p2');
+            setTimeout(() => {
+                avatar.classList.remove('tugging-p1', 'tugging-p2');
+            }, 500);
+        }
+
+        function updateRopeUI() {
+            // Convert position (-targetThreshold to +targetThreshold) to CSS percentage
+            // Default center = -10% left offset for a 120% wide rope
+            const maxOffsetPct = 28; // Max rope pull distance in %
+            const ratio = gameState.ropePosition / gameState.targetThreshold;
+            const currentLeft = -10 + (ratio * maxOffsetPct);
+
+            const ropeElem = document.getElementById('dynamicRope');
+            ropeElem.style.left = `${currentLeft}%`;
+
+            // Update status text
+            const statusBox = document.getElementById('positionStatus');
+            document.getElementById('p1ScoreBadge').textContent = `${gameState.p1Score} Poin`;
+            document.getElementById('p2ScoreBadge').textContent = `${gameState.p2Score} Poin`;
+
+            if (gameState.ropePosition === 0) {
+                statusBox.textContent = "POSISI SEIMBANG (0)";
+                statusBox.className = "bg-slate-900 border border-slate-700 px-4 py-1 rounded-full text-xs font-bold text-amber-400 uppercase tracking-widest";
+            } else if (gameState.ropePosition < 0) {
+                const step = Math.abs(gameState.ropePosition);
+                statusBox.textContent = `${gameState.p1Name} UNGGUL (+${step})`;
+                statusBox.className = "bg-rose-950 border border-rose-500/50 px-4 py-1 rounded-full text-xs font-bold text-rose-300 uppercase tracking-widest";
+            } else {
+                const step = gameState.ropePosition;
+                statusBox.textContent = `${gameState.p2Name} UNGGUL (+${step})`;
+                statusBox.className = "bg-blue-950 border border-blue-500/50 px-4 py-1 rounded-full text-xs font-bold text-blue-300 uppercase tracking-widest";
+            }
+        }
+
+        function checkVictoryCondition() {
+            if (Math.abs(gameState.ropePosition) >= gameState.targetThreshold) {
+                gameState.gameActive = false;
+                playSFX('victory');
+
+                const p1Won = gameState.ropePosition <= -gameState.targetThreshold;
+                const winnerName = p1Won ? gameState.p1Name : gameState.p2Name;
+
+                document.getElementById('winnerTitle').textContent = `${winnerName.toUpperCase()} MENANG!`;
+                document.getElementById('winnerSubtitle').textContent = `Mencapai target selisih ${gameState.targetThreshold} tarikan tambang!`;
+                
+                document.getElementById('statP1Ans').textContent = `${gameState.p1Score} benar (${gameState.p1TotalAnswers} percobaan)`;
+                document.getElementById('statP2Ans').textContent = `${gameState.p2Score} benar (${gameState.p2TotalAnswers} percobaan)`;
+                document.getElementById('statFinalPos').textContent = p1Won 
+                    ? `Tertarik ke wilayah ${gameState.p1Name}` 
+                    : `Tertarik ke wilayah ${gameState.p2Name}`;
+
+                spawnConfetti();
+                document.getElementById('victoryScreen').classList.remove('hidden');
+            }
+        }
+
+        function spawnConfetti() {
+            const container = document.getElementById('confettiContainer');
+            container.innerHTML = '';
+            const colors = ['#ef4444', '#3b82f6', '#eab308', '#10b981', '#ec4899'];
+
+            for (let i = 0; i < 40; i++) {
+                const p = document.createElement('div');
+                p.className = 'confetti-piece';
+                p.style.left = `${Math.random() * 100}%`;
+                p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                p.style.animationDelay = `${Math.random() * 2}s`;
+                p.style.animationDuration = `${2 + Math.random() * 2}s`;
+                container.appendChild(p);
+            }
+        }
+
+        function restartGameSameSettings() {
+            startGame(null);
+        }
+
+        // Initialize on Load
+        window.onload = function() {
+            showSetup();
+        };
+    </script>
+</body>
+</html>
